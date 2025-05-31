@@ -1,0 +1,17 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  background: #f8f9fa;
+}
+
+h1 {
+  margin: 1rem;
+  color: #2c3e50;
+}
+
+#map {
+  height: 90vh;
+  width: 100%;
+  border-top: 3px solid #2c3e50;
+}
