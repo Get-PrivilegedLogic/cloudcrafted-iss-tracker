@@ -1,46 +1,55 @@
-const positionApiUrl = "https://7lqytqrrzl.execute-api.us-east-1.amazonaws.com/prod/position";
-const trailApiUrl = "https://7lqytqrrzl.execute-api.us-east-1.amazonaws.com/prod/trail";
+let map = L.map('map').setView([0, 0], 2);
+let issMarker;
+let issIcon = L.icon({
+    iconUrl: 'iss.png',
+    iconSize: [50, 32],
+    iconAnchor: [25, 16]
+});
+let firstLoad = true;
 
-const map = L.map("map").setView([0, 0], 2);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "&copy; OpenStreetMap contributors"
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-const issIcon = L.icon({
-  iconUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d0/International_Space_Station.svg",
-  iconSize: [50, 32],
-  iconAnchor: [25, 16]
-});
-
-const marker = L.marker([0, 0], { icon: issIcon }).addTo(map);
-
 async function updateISS() {
-  try {
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-    const { latitude, longitude } = data;
-    marker.setLatLng([latitude, longitude]);
-    map.setView([latitude, longitude], map.getZoom());
-  } catch (err) {
-    console.error("Failed to fetch ISS data:", err);
-  }
-}
-async function fetchAndRenderTrail(map) {
-  try {
-    const response = await fetch(trailApiUrl);
-    const data = await response.json();
+    try {
+        const response = await fetch('https://7lqytqrrzl.execute-api.us-east-1.amazonaws.com/prod/position');
+        const data = await response.json();
+        const lat = parseFloat(data.latitude);
+        const lng = parseFloat(data.longitude);
 
-    const pathCoords = data.map(point => [
-      parseFloat(point.lat),
-      parseFloat(point.lng)
-    ]);
+        if (!issMarker) {
+            issMarker = L.marker([lat, lng], { icon: issIcon }).addTo(map);
+        } else {
+            issMarker.setLatLng([lat, lng]);
+        }
 
-    L.polyline(pathCoords, { color: 'red' }).addTo(map);
-  } catch (error) {
-    console.error('Error loading ISS trail:', error);
-  }
+        if (firstLoad) {
+            map.setView([lat, lng], 4); // Only recenter on first load
+            firstLoad = false;
+        }
+    } catch (error) {
+        console.error('Failed to fetch ISS data:', error);
+    }
 }
+
+async function fetchAndRenderTrail() {
+    try {
+        const response = await fetch('https://7lqytqrrzl.execute-api.us-east-1.amazonaws.com/prod/trail');
+        const trailData = await response.json();
+
+        if (Array.isArray(trailData) && trailData.length > 1) {
+            const latlngs = trailData.map(point => [parseFloat(point.lat), parseFloat(point.lng)]);
+            const trailLine = L.polyline(latlngs, { color: 'red' }).addTo(map);
+            map.fitBounds(trailLine.getBounds(), { padding: [20, 20] });
+        } else {
+            console.warn('Trail data not sufficient to draw a line.');
+        }
+    } catch (error) {
+        console.error('Error loading ISS trail:', error);
+    }
+}
+
+// Run updates
 updateISS();
-setInterval(updateISS, 10000); // update every 10 sec
-fetchAndRenderTrail(map);
-
+fetchAndRenderTrail();
